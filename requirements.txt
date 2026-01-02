@@ -1,0 +1,26 @@
+# Twitter API (Required)
+tweepy>=4.14.0
+
+# NBA API (Required)
+nba-api>=1.4.1
+
+# Scheduling (Required)
+APScheduler>=3.10.4
+
+# Database (Required)
+sqlalchemy>=2.0.25
+
+# Configuration (Required)
+python-dotenv>=1.0.0
+
+# Utilities (Required)
+requests>=2.31.0
+python-dateutil>=2.8.2
+
+# Logging (Required)
+loguru>=0.7.2
+
+# AI/LLM Integration (Optional - only needed for tweet monitoring)
+# Uncomment the line below if you want to enable tweet monitoring:
+# openai>=1.12.0
+
