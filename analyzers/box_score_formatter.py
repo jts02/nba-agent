@@ -46,14 +46,14 @@ class BoxScoreFormatter:
     @staticmethod
     def format_game_with_top_performers(
         game_data: Dict[str, Any],
-        top_performers: Dict[int, List[Dict[str, Any]]]
+        team_stats: Dict[int, List[Dict[str, Any]]]
     ) -> str:
         """
-        Create a game summary with top performers.
+        Create a game summary with detailed player performances.
         
         Args:
             game_data: Dictionary containing game information
-            top_performers: Dictionary of top performers by team
+            team_stats: Dictionary of player stats by team
             
         Returns:
             Formatted tweet text
@@ -66,22 +66,65 @@ class BoxScoreFormatter:
         home_team_id = game_data.get('home_team_id')
         
         # Start with score
+        winner = away_team if away_score > home_score else home_team
         tweet = f"🏀 FINAL: {away_team} {away_score}, {home_team} {home_score}\n\n"
         
-        # Add top performers
-        tweet += "⭐ Top Performers:\n\n"
+        # Find notable performances from both teams
+        notable_players = []
         
-        # Away team top performer
-        if away_team_id in top_performers and top_performers[away_team_id]:
-            top_away = top_performers[away_team_id][0]
-            tweet += f"{away_team}: {top_away['player_name']}\n"
-            tweet += f"  {top_away['points']}pts, {top_away['rebounds']}reb, {top_away['assists']}ast\n\n"
+        for team_id, team_name in [(away_team_id, away_team), (home_team_id, home_team)]:
+            if team_id not in team_stats:
+                continue
+                
+            players = team_stats[team_id]
+            
+            # Get leading scorer
+            leading_scorer = max(players, key=lambda x: x['points'])
+            
+            # Check for double-doubles and triple-doubles
+            for player in players:
+                stats = [player['points'], player['rebounds'], player['assists']]
+                double_digit_stats = sum(1 for s in stats if s >= 10)
+                
+                # Check if this is leading scorer, double-double, or triple-double
+                is_leader = player['player_name'] == leading_scorer['player_name']
+                is_double_double = double_digit_stats >= 2
+                is_triple_double = double_digit_stats >= 3
+                has_notable_stat = player['rebounds'] >= 15 or player['assists'] >= 15
+                
+                if is_leader or is_triple_double or (is_double_double and has_notable_stat):
+                    notable_players.append({
+                        'team': team_name,
+                        'player': player,
+                        'is_triple_double': is_triple_double,
+                        'is_double_double': is_double_double,
+                        'is_leader': is_leader
+                    })
         
-        # Home team top performer
-        if home_team_id in top_performers and top_performers[home_team_id]:
-            top_home = top_performers[home_team_id][0]
-            tweet += f"{home_team}: {top_home['player_name']}\n"
-            tweet += f"  {top_home['points']}pts, {top_home['rebounds']}reb, {top_home['assists']}ast"
+        # Format notable performances
+        if notable_players:
+            for perf in notable_players[:3]:  # Max 3 players to fit in tweet
+                player = perf['player']
+                badges = []
+                if perf['is_triple_double']:
+                    badges.append("🔥 TRIPLE-DOUBLE")
+                elif perf['is_double_double']:
+                    badges.append("💪")
+                
+                badge_str = f" {badges[0]}" if badges else ""
+                tweet += f"{perf['team']}: {player['player_name']}{badge_str}\n"
+                tweet += f"{player['points']}pts/{player['rebounds']}reb/{player['assists']}ast"
+                
+                # Add notable stats
+                if player['blocks'] >= 3:
+                    tweet += f"/{player['blocks']}blk"
+                if player['steals'] >= 3:
+                    tweet += f"/{player['steals']}stl"
+                
+                tweet += "\n\n"
+        
+        # Remove trailing newlines and check length
+        tweet = tweet.rstrip()
         
         # Truncate if too long
         if len(tweet) > 280:

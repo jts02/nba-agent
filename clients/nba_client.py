@@ -3,7 +3,7 @@ NBA API client for fetching game data and box scores.
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from nba_api.stats.endpoints import scoreboardv2, boxscoretraditionalv2, leaguegamefinder
+from nba_api.stats.endpoints import scoreboardv2, boxscoretraditionalv3, leaguegamefinder
 from nba_api.stats.static import teams
 from loguru import logger
 
@@ -155,33 +155,46 @@ class NBAClient:
             Box score data dictionary or None if failed
         """
         try:
-            box_score = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id)
-            data = box_score.get_normalized_dict()
+            box_score = boxscoretraditionalv3.BoxScoreTraditionalV3(game_id=game_id)
             
-            if not data or 'PlayerStats' not in data:
+            # V3 uses DataFrames instead of normalized dict
+            dfs = box_score.get_data_frames()
+            
+            if not dfs or len(dfs) == 0:
                 logger.error(f"No box score data found for game {game_id}")
                 return None
             
-            # Extract player stats
-            player_stats = data['PlayerStats']
+            # First DataFrame contains player stats
+            player_df = dfs[0]
+            
+            if player_df.empty:
+                logger.error(f"Empty player stats for game {game_id}")
+                return None
             
             # Group by team
             team_stats = {}
-            for player in player_stats:
-                team_id = player['TEAM_ID']
+            
+            for _, player in player_df.iterrows():
+                team_id = player['teamId']
                 if team_id not in team_stats:
                     team_stats[team_id] = []
+                
+                # Build player name from firstName and familyName
+                player_name = f"{player.get('firstName', '')} {player.get('familyName', '')}".strip()
+                
                 team_stats[team_id].append({
-                    'player_name': player['PLAYER_NAME'],
-                    'minutes': player['MIN'],
-                    'points': player['PTS'],
-                    'rebounds': player['REB'],
-                    'assists': player['AST'],
-                    'steals': player['STL'],
-                    'blocks': player['BLK'],
-                    'fg_pct': player['FG_PCT'],
-                    'three_pt_pct': player['FG3_PCT'],
+                    'player_name': player_name,
+                    'minutes': player.get('minutes', '0:00'),
+                    'points': int(player.get('points', 0)),
+                    'rebounds': int(player.get('reboundsTotal', 0)),
+                    'assists': int(player.get('assists', 0)),
+                    'steals': int(player.get('steals', 0)),
+                    'blocks': int(player.get('blocks', 0)),
+                    'fg_pct': float(player.get('fieldGoalsPercentage', 0)),
+                    'three_pt_pct': float(player.get('threePointersPercentage', 0)),
                 })
+            
+            logger.info(f"Successfully fetched box score for game {game_id}: {len(player_df)} players from {len(team_stats)} teams")
             
             return {
                 'game_id': game_id,
@@ -215,4 +228,20 @@ class NBAClient:
             top_performers[team_id] = sorted_players[:top_n]
         
         return top_performers
+    
+    def get_all_players_stats(self, game_id: str) -> Optional[Dict[int, List[Dict[str, Any]]]]:
+        """
+        Get all player stats from a game, organized by team.
+        
+        Args:
+            game_id: NBA game ID
+            
+        Returns:
+            Dictionary with all player stats by team
+        """
+        box_score = self.get_box_score(game_id)
+        if not box_score:
+            return None
+        
+        return box_score.get('team_stats', {})
 

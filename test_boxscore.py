@@ -36,21 +36,37 @@ def main():
         print(f"Game {i}: {game['away_team']} @ {game['home_team']}")
         print('='*60)
         
-        # Try to get top performers
-        print(f"Fetching detailed stats for game {game['game_id']}...")
-        top_performers = nba.get_top_performers(game['game_id'], top_n=1)
+        # Try to get detailed player stats
+        print(f"\nFetching detailed stats for game {game['game_id']}...")
+        team_stats = nba.get_all_players_stats(game['game_id'])
         
-        # Format the tweet
-        if top_performers:
-            tweet_text = formatter.format_game_with_top_performers(game, top_performers)
+        # Debug: Show what we got
+        if team_stats:
+            print(f"✅ Got stats for {len(team_stats)} teams")
+            for team_id, players in team_stats.items():
+                print(f"   Team {team_id}: {len(players)} players")
+                # Show top 3 scorers
+                top_3 = sorted(players, key=lambda x: x['points'], reverse=True)[:3]
+                for player in top_3:
+                    print(f"      {player['player_name']}: {player['points']}pts/"
+                          f"{player['rebounds']}reb/{player['assists']}ast")
         else:
+            print("❌ No detailed stats available")
+        
+        # Format the tweet with detailed stats
+        print("\n" + "="*60)
+        print("TWEET THAT WOULD BE POSTED:")
+        print("="*60)
+        
+        if team_stats:
+            tweet_text = formatter.format_game_with_top_performers(game, team_stats)
+        else:
+            print("⚠️  Using fallback format (no detailed stats)")
             tweet_text = formatter.format_game_summary(game)
         
         # Display the formatted tweet
-        print("\nFormatted tweet:")
-        print("-" * 60)
         print(tweet_text)
-        print("-" * 60)
+        print("="*60)
         print(f"Length: {len(tweet_text)} characters")
         
         # Show game details
@@ -70,9 +86,9 @@ def main():
         
         for game in games:
             # Get formatted tweet again
-            top_performers = nba.get_top_performers(game['game_id'], top_n=1)
-            if top_performers:
-                tweet_text = formatter.format_game_with_top_performers(game, top_performers)
+            team_stats = nba.get_all_players_stats(game['game_id'])
+            if team_stats:
+                tweet_text = formatter.format_game_with_top_performers(game, team_stats)
             else:
                 tweet_text = formatter.format_game_summary(game)
             

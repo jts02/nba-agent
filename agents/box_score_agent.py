@@ -83,13 +83,13 @@ class BoxScoreAgent:
             return
         
         try:
-            # Get top performers for more engaging tweet
-            top_performers = self.nba_client.get_top_performers(game_id, top_n=1)
+            # Get all player stats for detailed analysis
+            team_stats = self.nba_client.get_all_players_stats(game_id)
             
-            # Format the tweet
-            if top_performers:
+            # Format the tweet with detailed stats
+            if team_stats:
                 tweet_text = self.formatter.format_game_with_top_performers(
-                    game, top_performers
+                    game, team_stats
                 )
             else:
                 tweet_text = self.formatter.format_game_summary(game)
