@@ -6,6 +6,8 @@ This is useful for testing without waiting for the scheduler.
 from clients import TwitterClient, NBAClient
 from analyzers import BoxScoreFormatter
 from config import settings
+from database import DatabaseManager, BoxScorePost
+from datetime import datetime
 
 
 def main():
@@ -14,10 +16,14 @@ def main():
     print("NBA Box Score Test")
     print("=" * 60)
     
-    # Initialize clients
-    print("\nInitializing clients...")
+    # Initialize clients and database
+    print("\nInitializing clients and database...")
     nba = NBAClient()
     formatter = BoxScoreFormatter()
+    db_manager = DatabaseManager(settings.DATABASE_URL)
+    db_manager.create_tables()
+    
+    session = db_manager.get_session()
     
     # Get completed games from today
     print("Fetching completed games from today...")
@@ -36,9 +42,19 @@ def main():
         print(f"Game {i}: {game['away_team']} @ {game['home_team']}")
         print('='*60)
         
+        # Check if already posted
+        game_id = game['game_id']
+        existing = session.query(BoxScorePost).filter_by(game_id=game_id).first()
+        
+        if existing:
+            print(f"⚠️  This game was already posted on {existing.posted_at}")
+            print(f"   Tweet ID: {existing.tweet_id}")
+            print(f"   Skipping to avoid duplicate...")
+            continue
+        
         # Try to get detailed player stats
-        print(f"\nFetching detailed stats for game {game['game_id']}...")
-        team_stats = nba.get_all_players_stats(game['game_id'])
+        print(f"\nFetching detailed stats for game {game_id}...")
+        team_stats = nba.get_all_players_stats(game_id)
         
         # Debug: Show what we got
         if team_stats:
@@ -84,23 +100,57 @@ def main():
         print("\nPosting to Twitter...")
         twitter = TwitterClient()
         
-        for game in games:
-            # Get formatted tweet again
-            team_stats = nba.get_all_players_stats(game['game_id'])
-            if team_stats:
-                tweet_text = formatter.format_game_with_top_performers(game, team_stats)
-            else:
-                tweet_text = formatter.format_game_summary(game)
+        try:
+            for game in games:
+                game_id = game['game_id']
+                
+                # Skip if already posted (check again in case multiple games)
+                existing = session.query(BoxScorePost).filter_by(game_id=game_id).first()
+                if existing:
+                    print(f"⏭️  Skipping game {game_id} (already posted)")
+                    continue
+                
+                # Get formatted tweet
+                team_stats = nba.get_all_players_stats(game_id)
+                if team_stats:
+                    tweet_text = formatter.format_game_with_top_performers(game, team_stats)
+                else:
+                    tweet_text = formatter.format_game_summary(game)
+                
+                # Post it
+                tweet_id = twitter.post_tweet(tweet_text)
+                
+                if tweet_id:
+                    print(f"✅ Posted game {game_id} as tweet {tweet_id}")
+                    
+                    # Save to database
+                    box_score_post = BoxScorePost(
+                        game_id=game_id,
+                        game_date=datetime.strptime(game['game_date'], "%Y-%m-%dT%H:%M:%S"),
+                        home_team=game['home_team'],
+                        away_team=game['away_team'],
+                        home_score=game.get('home_score', 0),
+                        away_score=game.get('away_score', 0),
+                        post_text=tweet_text,
+                        tweet_id=tweet_id,
+                        posted_at=datetime.utcnow()
+                    )
+                    session.add(box_score_post)
+                    session.commit()
+                    print(f"   💾 Saved to database")
+                else:
+                    print(f"❌ Failed to post game {game_id}")
             
-            # Post it
-            tweet_id = twitter.post_tweet(tweet_text)
+            print("\n✅ All new games posted!")
             
-            if tweet_id:
-                print(f"✅ Posted game {game['game_id']} as tweet {tweet_id}")
-            else:
-                print(f"❌ Failed to post game {game['game_id']}")
+        except Exception as e:
+            print(f"\n❌ Error during posting: {e}")
+            session.rollback()
+        finally:
+            session.close()
     else:
-        print("\n Skipping Twitter posting.")
+        print("\n⏭️  Skipping Twitter posting.")
+        session.close()
     
     print("\n" + "=" * 60)
     print("Test complete!")
