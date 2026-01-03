@@ -1,0 +1,149 @@
+{
+  "games": [
+    {
+      "game_id": "0022500999",
+      "game_date": "2026-01-03T00:00:00",
+      "away_team": "LAL",
+      "home_team": "BOS",
+      "away_team_id": 1610612737,
+      "home_team_id": 1610612738,
+      "away_score": 115,
+      "home_score": 108,
+      "status": "Final",
+      "player_stats": {
+        "1610612737": [
+          {
+            "player_name": "LeBron James",
+            "minutes": "38:24",
+            "points": 32,
+            "rebounds": 12,
+            "assists": 11,
+            "steals": 2,
+            "blocks": 1,
+            "fg_pct": 0.556,
+            "three_pt_pct": 0.400
+          },
+          {
+            "player_name": "Anthony Davis",
+            "minutes": "36:15",
+            "points": 28,
+            "rebounds": 15,
+            "assists": 4,
+            "steals": 1,
+            "blocks": 3,
+            "fg_pct": 0.600,
+            "three_pt_pct": 0.000
+          },
+          {
+            "player_name": "Austin Reaves",
+            "minutes": "32:10",
+            "points": 18,
+            "rebounds": 5,
+            "assists": 8,
+            "steals": 0,
+            "blocks": 0,
+            "fg_pct": 0.500,
+            "three_pt_pct": 0.429
+          }
+        ],
+        "1610612738": [
+          {
+            "player_name": "Jayson Tatum",
+            "minutes": "40:05",
+            "points": 35,
+            "rebounds": 8,
+            "assists": 6,
+            "steals": 3,
+            "blocks": 1,
+            "fg_pct": 0.545,
+            "three_pt_pct": 0.444
+          },
+          {
+            "player_name": "Jaylen Brown",
+            "minutes": "37:20",
+            "points": 26,
+            "rebounds": 7,
+            "assists": 5,
+            "steals": 2,
+            "blocks": 0,
+            "fg_pct": 0.520,
+            "three_pt_pct": 0.333
+          },
+          {
+            "player_name": "Kristaps Porzingis",
+            "minutes": "34:30",
+            "points": 22,
+            "rebounds": 10,
+            "assists": 2,
+            "steals": 1,
+            "blocks": 4,
+            "fg_pct": 0.550,
+            "three_pt_pct": 0.400
+          }
+        ]
+      }
+    },
+    {
+      "game_id": "0022500998",
+      "game_date": "2026-01-03T00:00:00",
+      "away_team": "GSW",
+      "home_team": "PHX",
+      "away_team_id": 1610612744,
+      "home_team_id": 1610612756,
+      "away_score": 98,
+      "home_score": 112,
+      "status": "Final",
+      "player_stats": {
+        "1610612744": [
+          {
+            "player_name": "Stephen Curry",
+            "minutes": "35:15",
+            "points": 42,
+            "rebounds": 5,
+            "assists": 7,
+            "steals": 2,
+            "blocks": 0,
+            "fg_pct": 0.556,
+            "three_pt_pct": 0.500
+          },
+          {
+            "player_name": "Klay Thompson",
+            "minutes": "32:00",
+            "points": 19,
+            "rebounds": 4,
+            "assists": 3,
+            "steals": 1,
+            "blocks": 0,
+            "fg_pct": 0.450,
+            "three_pt_pct": 0.385
+          }
+        ],
+        "1610612756": [
+          {
+            "player_name": "Devin Booker",
+            "minutes": "38:45",
+            "points": 31,
+            "rebounds": 8,
+            "assists": 10,
+            "steals": 1,
+            "blocks": 0,
+            "fg_pct": 0.520,
+            "three_pt_pct": 0.400
+          },
+          {
+            "player_name": "Kevin Durant",
+            "minutes": "36:20",
+            "points": 28,
+            "rebounds": 11,
+            "assists": 6,
+            "steals": 2,
+            "blocks": 2,
+            "fg_pct": 0.545,
+            "three_pt_pct": 0.429
+          }
+        ]
+      }
+    }
+  ]
+}
+

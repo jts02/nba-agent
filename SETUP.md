@@ -361,6 +361,29 @@ led the charge in a statement win 💪
 
 ---
 
+## Testing with Dummy Data
+
+Want to test without waiting for real games? Use test mode!
+
+```bash
+# Run with test data (2 dummy games included)
+python ai_agent.py test
+
+# Or use --test flag
+python ai_agent.py --test
+
+# Loop mode with test data
+python ai_agent.py loop 1 --test
+```
+
+**Test data includes:**
+- LAL @ BOS: LeBron triple-double (32/12/11)
+- GSW @ PHX: Curry 42 points, Booker double-double
+
+See `TESTING.md` for full testing guide!
+
+---
+
 ## Troubleshooting
 
 ### "ANTHROPIC_API_KEY not found"

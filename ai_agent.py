@@ -17,10 +17,11 @@ from mcp.client.stdio import stdio_client
 load_dotenv()
 
 
-async def run_agent():
+async def run_agent(test_mode: bool = False):
     """Run AI agent with Claude + MCP."""
+    mode_text = "🧪 TEST MODE (Using dummy data)" if test_mode else "🤖 NBA AI AGENT"
     print("=" * 60)
-    print("🤖 NBA AI AGENT")
+    print(mode_text)
     print("=" * 60)
     
     # Check API key
@@ -33,10 +34,11 @@ async def run_agent():
     print("✅ API key found")
     
     # Connect to MCP server
-    print("🔌 Connecting to MCP server...")
+    mcp_script = "test_mcp_server.py" if test_mode else "mcp_server.py"
+    print(f"🔌 Connecting to MCP server ({'TEST' if test_mode else 'PRODUCTION'})...")
     server_params = StdioServerParameters(
         command="python",
-        args=["mcp_server.py"]
+        args=[mcp_script]
     )
     
     async with stdio_client(server_params) as (read, write):
@@ -230,16 +232,18 @@ async def run_interactive():
                         print(block.text)
 
 
-async def run_agent_loop(check_interval_minutes: int = 5):
+async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = False):
     """
     Run agent continuously, checking for games every N minutes.
     This makes it a true autonomous bot!
     
     Args:
         check_interval_minutes: How often to check (default: 5 minutes)
+        test_mode: Use test data instead of real NBA API
     """
+    mode_text = "🧪 TEST MODE" if test_mode else "🤖 AUTONOMOUS MODE"
     print("=" * 60)
-    print("🤖 NBA AI AGENT - AUTONOMOUS MODE")
+    print(f"NBA AI AGENT - {mode_text}")
     print("=" * 60)
     print(f"⏰ Checking every {check_interval_minutes} minutes")
     print("Press Ctrl+C to stop\n")
@@ -257,7 +261,7 @@ async def run_agent_loop(check_interval_minutes: int = 5):
             
             # Run the agent
             try:
-                await run_agent()
+                await run_agent(test_mode=test_mode)
             except Exception as e:
                 print(f"❌ Error during check: {e}")
                 print("   Will retry on next interval...")
@@ -274,19 +278,30 @@ async def run_agent_loop(check_interval_minutes: int = 5):
 if __name__ == "__main__":
     import sys
     
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "interactive":
-            asyncio.run(run_interactive())
-        elif sys.argv[1] == "loop":
+    test_mode = "--test" in sys.argv or "test" in sys.argv
+    args = [a for a in sys.argv[1:] if a not in ["--test", "test"]]
+    
+    if len(args) > 0:
+        if args[0] == "interactive":
+            print("❌ Interactive mode not yet supported with test mode")
+            print("   Use: python ai_agent.py interactive")
+            sys.exit(1)
+        elif args[0] == "loop":
             # Continuous mode with optional interval
-            interval = int(sys.argv[2]) if len(sys.argv) > 2 else 5
-            asyncio.run(run_agent_loop(interval))
+            interval = int(args[1]) if len(args) > 1 else 5
+            asyncio.run(run_agent_loop(interval, test_mode=test_mode))
+        elif args[0] == "test":
+            # Explicit test mode
+            asyncio.run(run_agent(test_mode=True))
         else:
             print("Usage:")
-            print("  python ai_agent.py           # Run once")
-            print("  python ai_agent.py loop [N]  # Run every N minutes (default: 5)")
+            print("  python ai_agent.py              # Run once (real data)")
+            print("  python ai_agent.py test         # Run once (test data)")
+            print("  python ai_agent.py --test       # Run once (test data)")
+            print("  python ai_agent.py loop [N]     # Run every N minutes (default: 5)")
+            print("  python ai_agent.py loop 5 --test  # Test mode with loop")
             print("  python ai_agent.py interactive  # Interactive chat mode")
     else:
-        asyncio.run(run_agent())
+        asyncio.run(run_agent(test_mode=test_mode))
 
 
