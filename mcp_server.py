@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 import json
 from datetime import datetime
 from mcp.server.fastmcp import FastMCP
+from loguru import logger
 
 from clients import NBAClient, TwitterClient
 from analyzers import BoxScoreFormatter, InjuryDetector
