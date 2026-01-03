@@ -1,10 +1,12 @@
+# NBA Agent - Core Requirements
+
 # Twitter API (Required)
 tweepy>=4.14.0
 
 # NBA API (Required)
 nba-api>=1.4.1
 
-# Scheduling (Required)
+# Scheduling (for manual_main.py)
 APScheduler>=3.10.4
 
 # Database (Required)
@@ -20,7 +22,8 @@ python-dateutil>=2.8.2
 # Logging (Required)
 loguru>=0.7.2
 
-# AI/LLM Integration (Optional - only needed for tweet monitoring)
-# Uncomment the line below if you want to enable tweet monitoring:
-# openai>=1.12.0
+# MCP Server (Required for AI agent)
+mcp>=0.9.0
 
+# Claude AI (Required for ai_agent.py)
+anthropic>=0.18.0
