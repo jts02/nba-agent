@@ -66,7 +66,7 @@ async def run_agent():
             
             # Initialize Claude
             llm = ChatAnthropic(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-20250514",
                 api_key=os.getenv("ANTHROPIC_API_KEY")
             )
             
@@ -139,7 +139,7 @@ async def run_interactive_agent():
             await mcp_tools.initialize()
             
             llm = ChatAnthropic(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-20250514",
                 api_key=os.getenv("ANTHROPIC_API_KEY")
             )
             

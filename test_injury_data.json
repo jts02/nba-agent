@@ -1,0 +1,59 @@
+{
+  "tweets": [
+    {
+      "id": "1234567890123456789",
+      "text": "BREAKING: Lakers star LeBron James will miss 2-3 weeks with a sprained ankle suffered in tonight's game against Boston. MRI confirmed no structural damage.",
+      "created_at": "2026-01-03T20:30:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": true,
+      "expected_summary": "LeBron James - ankle sprain, out 2-3 weeks"
+    },
+    {
+      "id": "1234567890123456790",
+      "text": "Injury Update: Warriors' Stephen Curry (shoulder soreness) is questionable for tomorrow's game vs Phoenix. Team will monitor through warmups.",
+      "created_at": "2026-01-03T18:15:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": true,
+      "expected_summary": "Stephen Curry - shoulder soreness, questionable"
+    },
+    {
+      "id": "1234567890123456791",
+      "text": "Sources: Milwaukee's Giannis Antetokounmpo will undergo an MRI on his knee after leaving tonight's game in the third quarter. Team is hopeful it's just a strain.",
+      "created_at": "2026-01-03T22:45:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": true,
+      "expected_summary": "Giannis Antetokounmpo - knee issue, MRI pending"
+    },
+    {
+      "id": "1234567890123456792",
+      "text": "The Miami Heat have agreed to a trade sending Kyle Lowry to the Philadelphia 76ers for a 2025 first-round pick, sources tell @TheAthletic.",
+      "created_at": "2026-01-03T16:00:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": false,
+      "expected_summary": "Not injury related - trade news"
+    },
+    {
+      "id": "1234567890123456793",
+      "text": "INJURY UPDATE: Phoenix Suns center Deandre Ayton has been ruled OUT for the next 4-6 weeks following surgery to repair a torn ligament in his left thumb. Surgery was successful.",
+      "created_at": "2026-01-03T14:20:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": true,
+      "expected_summary": "Deandre Ayton - thumb surgery, out 4-6 weeks"
+    },
+    {
+      "id": "1234567890123456794",
+      "text": "Breaking: Joel Embiid will return to action tonight vs the Knicks after missing 5 games with a knee injury. He's officially listed as ACTIVE.",
+      "created_at": "2026-01-03T19:00:00Z",
+      "author_username": "ShamsCharania",
+      "author_id": "123456789",
+      "is_injury": true,
+      "expected_summary": "Joel Embiid - returning from injury"
+    }
+  ]
+}
+

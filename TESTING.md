@@ -2,7 +2,7 @@
 
 ## Quick Test with Dummy Data
 
-Test your agent without waiting for real NBA games!
+Test your agent without waiting for real NBA games or tweets!
 
 ### Test Data
 
@@ -168,6 +168,120 @@ python ai_agent.py test
 ```bash
 # Clean them up
 sqlite3 nba_agent.db "DELETE FROM box_score_posts WHERE game_id LIKE '002250099%';"
+```
+
+---
+
+## Testing Injury Monitoring
+
+### Test Injury Data
+
+Six dummy tweets are included in `test_injury_data.json`:
+
+1. **LeBron James** - ankle sprain, out 2-3 weeks
+2. **Stephen Curry** - shoulder soreness, questionable
+3. **Giannis Antetokounmpo** - knee issue, MRI pending
+4. **Trade news** (NOT injury - tests filtering)
+5. **Deandre Ayton** - thumb surgery, out 4-6 weeks
+6. **Joel Embiid** - returning from injury
+
+### Run Injury Test Mode
+
+```bash
+# Run once with test injury data
+python ai_agent.py test injury
+
+# Or use flags
+python ai_agent.py --test --injury
+
+# Run in loop mode (check every 1 minute)
+python ai_agent.py loop 1 --test --injury
+```
+
+### What Happens in Injury Test Mode
+
+1. ✅ Uses `test_injury_mcp_server.py` instead of `mcp_server.py`
+2. ✅ Returns dummy tweets from `test_injury_data.json`
+3. ✅ Uses simple keyword matching (no OpenAI API needed for testing)
+4. ✅ Extracts player names, injury types, and time missed
+5. ✅ Prints injury tweets (doesn't actually post)
+6. ✅ Real database tracking
+
+**Perfect for testing the injury workflow!**
+
+### Example Injury Test Run
+
+```bash
+$ python ai_agent.py test injury
+
+============================================================
+🧪 TEST MODE - INJURY MONITORING (Using dummy tweets)
+============================================================
+✅ API key found
+🔌 Connecting to MCP server (TEST)...
+✅ Connected to MCP server
+✅ Loaded 7 tools
+
+============================================================
+🎯 Task: Check for injury tweets and post about them
+============================================================
+
+🔧 Claude is using tools...
+   • Calling: check_and_post_injury_tweets
+
+============================================================
+🧪 TEST MODE - Generated Injury Tweet (NOT posted):
+============================================================
+🏥 Injury Report: LeBron James - ankle injury. Expected to miss 2-3 weeks.
+============================================================
+Length: 72 characters
+============================================================
+
+📝 Claude's Summary:
+I found 5 injury-related tweets from Shams. Posted about:
+- LeBron James (ankle, 2-3 weeks)
+- Giannis Antetokounmpo (knee, MRI pending)
+- Deandre Ayton (thumb surgery, 4-6 weeks)
+```
+
+### Clean Up Test Injury Posts
+
+```bash
+# Delete test injury posts from database
+sqlite3 nba_agent.db "DELETE FROM processed_tweets WHERE tweet_id LIKE '12345678%';"
+
+# Or view them first
+sqlite3 nba_agent.db "SELECT tweet_id, author_username, is_injury_related, reposted FROM processed_tweets WHERE tweet_id LIKE '12345678%';"
+```
+
+### Injury Test Mode vs Production
+
+| Feature | Test Mode | Production |
+|---------|-----------|------------|
+| **Data Source** | `test_injury_data.json` | Real Twitter API |
+| **MCP Server** | `test_injury_mcp_server.py` | `mcp_server.py` |
+| **Injury Detection** | Keyword matching | Claude AI |
+| **Twitter** | Print only (no post) | Real retweets |
+| **Database** | Real | Real |
+| **Claude API** | Real | Real |
+
+### Running Both Modes
+
+You can test both box scores and injuries:
+
+```bash
+# Test box scores
+python ai_agent.py test
+
+# Test injuries
+python ai_agent.py test injury
+
+# Run both in production (requires separate terminals)
+# Terminal 1:
+python ai_agent.py loop 60  # Box scores every hour
+
+# Terminal 2:
+python ai_agent.py loop 5 injury  # Injuries every 5 minutes
 ```
 
 ---

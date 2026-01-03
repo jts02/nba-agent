@@ -45,7 +45,7 @@ async def run_agent_simple():
     
     # Initialize Claude with tools
     llm = ChatAnthropic(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-20250514",
         api_key=api_key
     )
     llm_with_tools = llm.bind_tools(tools)
@@ -113,7 +113,7 @@ async def run_interactive():
     print(f"✅ Loaded {len(tools)} tools")
     
     llm = ChatAnthropic(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-20250514",
         api_key=api_key
     )
     llm_with_tools = llm.bind_tools(tools)

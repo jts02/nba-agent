@@ -149,6 +149,8 @@ LOG_LEVEL=INFO
 
 ## Running the Agent
 
+The agent can monitor **box scores** or **injury tweets** (or both in separate terminals).
+
 ### Option 1: Run Once (Manual)
 
 Check for games and post, then exit:
@@ -363,10 +365,12 @@ led the charge in a statement win 💪
 
 ## Testing with Dummy Data
 
-Want to test without waiting for real games? Use test mode!
+Want to test without waiting for real games or tweets? Use test mode!
+
+### Test Box Scores
 
 ```bash
-# Run with test data (2 dummy games included)
+# Run with test game data (2 dummy games included)
 python ai_agent.py test
 
 # Or use --test flag
@@ -379,6 +383,27 @@ python ai_agent.py loop 1 --test
 **Test data includes:**
 - LAL @ BOS: LeBron triple-double (32/12/11)
 - GSW @ PHX: Curry 42 points, Booker double-double
+
+### Test Injury Monitoring
+
+```bash
+# Run with test injury data (6 dummy tweets included)
+python ai_agent.py test injury
+
+# Or use flags
+python ai_agent.py --test --injury
+
+# Loop mode with test injury data
+python ai_agent.py loop 1 --test --injury
+```
+
+**Test injury data includes:**
+- LeBron James - ankle sprain, out 2-3 weeks
+- Stephen Curry - shoulder soreness, questionable
+- Giannis - knee issue, MRI pending
+- Deandre Ayton - thumb surgery, out 4-6 weeks
+- Joel Embiid - returning from injury
+- Trade news (tests filtering)
 
 See `TESTING.md` for full testing guide!
 

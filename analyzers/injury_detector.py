@@ -1,18 +1,19 @@
 """
-AI-powered injury detection analyzer using OpenAI.
+AI-powered injury detection analyzer using Claude (Anthropic).
 """
 from typing import Dict, Any, Optional
-from openai import OpenAI
+from anthropic import Anthropic
 from loguru import logger
 from config import settings
+import json
 
 
 class InjuryDetector:
     """Detect injury-related content in tweets using AI."""
     
     def __init__(self):
-        """Initialize the injury detector with OpenAI client."""
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        """Initialize the injury detector with Claude client."""
+        self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         
     def is_injury_related(self, tweet_text: str) -> Dict[str, Any]:
         """
@@ -25,44 +26,46 @@ class InjuryDetector:
             Dictionary with 'is_injury': bool, 'confidence': float, 'summary': str
         """
         try:
-            system_prompt = """You are an NBA injury news analyst. Your job is to determine if a tweet 
-            contains information about NBA player injuries, including:
-            - Injury reports (player X is out/injured)
-            - Injury updates (player X is questionable/probable/doubtful)
-            - Return from injury announcements
-            - Injury severity descriptions
-            - Medical procedures related to injuries
-            
-            Respond ONLY with a JSON object in this exact format:
-            {
-                "is_injury": true/false,
-                "confidence": 0.0-1.0,
-                "summary": "brief explanation"
-            }
-            
-            Do not include any other text outside the JSON object."""
-            
-            user_prompt = f"""Analyze this tweet and determine if it's injury-related:
+            prompt = f"""You are analyzing a tweet from an NBA insider to determine if it reports a player injury or injury-related news.
 
 Tweet: "{tweet_text}"
 
-Respond with JSON only."""
+MARK AS INJURY (is_injury: true) if the tweet mentions:
+- Player is injured, hurt, or suffers an injury
+- Player will miss games due to injury
+- Player is out/questionable/doubtful/probable due to injury
+- Medical updates: MRI, surgery, medical procedures for injuries
+- Injury diagnosis: sprains, strains, fractures, tears, etc.
+- Timeline for return from injury
+- Re-evaluation timelines (e.g., "will be re-evaluated in X weeks")
+
+DO NOT mark as injury if:
+- Player is resting (not injured)
+- General team news or trades
+- Contract signings
+- Player returning from injury (already healed) - UNLESS it specifically mentions timeline or injury details
+
+Respond with ONLY a JSON object (no other text):
+{{
+    "is_injury": true or false,
+    "confidence": 0.0 to 1.0 (how certain you are),
+    "summary": "brief explanation of your decision"
+}}
+
+Be liberal with marking injuries - if there's any mention of a player being hurt or injured, mark it as injury-related."""
             
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3,
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
                 max_tokens=200,
-                response_format={"type": "json_object"}
+                temperature=0.3,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
             
-            result_text = response.choices[0].message.content
+            result_text = response.content[0].text.strip()
             
             # Parse JSON response
-            import json
             result = json.loads(result_text)
             
             logger.info(
@@ -92,25 +95,25 @@ Respond with JSON only."""
             Generated comment text or None if failed
         """
         try:
-            system_prompt = """You are an NBA news bot. Generate a very brief (max 50 characters) 
-            comment to add context to injury news. Be professional and informative.
-            Examples: "Injury Update 🏀", "Breaking: Injury News", "Latest Injury Report"
+            prompt = f"""Generate a very brief comment (max 50 characters) for this injury news tweet.
+Be professional and informative.
+
+Examples: "Injury Update 🏀", "Breaking: Injury News", "Latest Injury Report"
+
+Tweet: {original_tweet}
+
+Respond with ONLY the comment text, nothing else."""
             
-            Respond with ONLY the comment text, nothing else."""
-            
-            user_prompt = f"Generate a brief comment for this injury news:\n\n{original_tweet}"
-            
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=30,
                 temperature=0.7,
-                max_tokens=30
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
             
-            comment = response.choices[0].message.content.strip()
+            comment = response.content[0].text.strip()
             
             # Remove quotes if present
             if comment.startswith('"') and comment.endswith('"'):

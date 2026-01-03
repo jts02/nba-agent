@@ -17,9 +17,36 @@ from mcp.client.stdio import stdio_client
 load_dotenv()
 
 
-async def run_agent(test_mode: bool = False):
-    """Run AI agent with Claude + MCP."""
-    mode_text = "🧪 TEST MODE (Using dummy data)" if test_mode else "🤖 NBA AI AGENT"
+async def run_agent(test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False):
+    """Run AI agent with Claude + MCP.
+    
+    Args:
+        test_mode: Use test data instead of real APIs
+        injury_only: Only run injury monitoring (not box scores)
+        box_score_only: Only run box score posting (not injuries)
+        
+    By default (no flags), runs BOTH injury and box score monitoring.
+    """
+    # Determine what to run
+    run_injuries = not box_score_only  # Run injuries unless box_score_only
+    run_box_scores = not injury_only   # Run box scores unless injury_only
+    
+    # Determine mode text
+    if test_mode:
+        if injury_only:
+            mode_text = "🧪 TEST MODE - INJURY MONITORING (Using dummy tweets)"
+        elif box_score_only:
+            mode_text = "🧪 TEST MODE - BOX SCORES (Using dummy games)"
+        else:
+            mode_text = "🧪 TEST MODE - BOX SCORES & INJURIES (Using dummy data)"
+    else:
+        if injury_only:
+            mode_text = "🤖 NBA AI AGENT - INJURY MONITORING"
+        elif box_score_only:
+            mode_text = "🤖 NBA AI AGENT - BOX SCORES"
+        else:
+            mode_text = "🤖 NBA AI AGENT - BOX SCORES & INJURIES"
+    
     print("=" * 60)
     print(mode_text)
     print("=" * 60)
@@ -33,8 +60,19 @@ async def run_agent(test_mode: bool = False):
     
     print("✅ API key found")
     
-    # Connect to MCP server
-    mcp_script = "test_mcp_server.py" if test_mode else "mcp_server.py"
+    # Connect to MCP server based on mode
+    if test_mode:
+        if injury_only:
+            mcp_script = "test_injury_mcp_server.py"
+        elif box_score_only:
+            mcp_script = "test_mcp_server.py"
+        else:
+            # Test both - use combined test server
+            mcp_script = "test_combined_mcp_server.py"
+    else:
+        # Production mode - always use main server with all tools
+        mcp_script = "mcp_server.py"
+    
     print(f"🔌 Connecting to MCP server ({'TEST' if test_mode else 'PRODUCTION'})...")
     server_params = StdioServerParameters(
         command="python",
@@ -62,14 +100,61 @@ async def run_agent(test_mode: bool = False):
             # Initialize Claude
             client = Anthropic(api_key=api_key)
             
-            # Run the task
-            print("=" * 60)
-            print("🎯 Task: Check for NBA games and post interesting ones")
-            print("=" * 60 + "\n")
+            # Determine mode based on flags (not just available tools)
+            # This ensures --box_score doesn't try to call injury APIs
+            run_both = not injury_only and not box_score_only
             
-            messages = [{
-                "role": "user",
-                "content": """You are an NBA social media manager with a creative eye for exciting basketball moments.
+            # Set task and prompt based on mode flags
+            if run_both:
+                # BOTH modes - this is the default!
+                task_description = "Check for NBA games AND injury tweets"
+                user_prompt = """You are a comprehensive NBA social media manager handling both game recaps and injury news.
+
+Your job is to do BOTH of these tasks:
+
+TASK 1 - Game Recaps:
+1. Use check_for_new_games() to find completed NBA games that haven't been posted yet
+2. For interesting games, use generate_custom_tweet() to get game stats
+3. Craft compelling, creative tweets (max 280 chars) highlighting:
+   - Triple-doubles or double-doubles with 🔥 or 💪 emojis
+   - 30+ point performances
+   - Game-winning performances in close games
+   - Dominant team performances
+4. Use post_custom_tweet() with your crafted text to post it
+
+Example game tweets:
+- "Cade Cunningham put on a SHOW 🔥 31pts/8reb/11ast as DET edges MIA 112-118. This kid is special."
+- "HOU dominates BKN 120-96. Amen Thompson (23/4/3) led the charge in a statement win 🏀"
+
+TASK 2 - Injury News:
+1. Use check_and_post_injury_tweets() to check for new injury tweets from Shams Charania
+2. The tool automatically analyzes and posts injury news
+3. Report back what injuries were found
+
+Do BOTH tasks and report on both!"""
+            
+            elif injury_only:
+                # Injury mode only (explicitly requested)
+                task_description = "Check for injury tweets and post about them"
+                user_prompt = """You are an NBA injury news aggregator.
+
+Your job:
+1. Use check_and_post_injury_tweets() to check for new injury-related tweets from Shams Charania
+2. The tool will automatically analyze tweets and repost injury news
+3. Report back what injuries were found and posted
+
+Focus on:
+- Player injuries (sprains, strains, tears, surgery)
+- Expected time missed
+- Injury updates (questionable, out, returning)
+- MRI results and medical procedures
+
+The tool handles the analysis and posting automatically. Just call it and report the results."""
+            
+            elif box_score_only:
+                # Box score mode only (explicitly requested)
+                task_description = "Check for NBA games and post interesting ones"
+                user_prompt = """You are an NBA social media manager with a creative eye for exciting basketball moments.
 
 Your job:
 1. Check for completed NBA games that haven't been posted yet
@@ -88,6 +173,19 @@ Be creative! Don't use rigid formats. Examples of good tweets:
 - "HOU dominates BKN 120-96. Amen Thompson (23/4/3) led the charge in a statement win 🏀"
 
 Make each tweet unique based on what actually happened in the game!"""
+            
+            else:
+                task_description = "Process NBA data"
+                user_prompt = "Check available tools and determine what to do."
+            
+            # Run the task
+            print("=" * 60)
+            print(f"🎯 Task: {task_description}")
+            print("=" * 60 + "\n")
+            
+            messages = [{
+                "role": "user",
+                "content": user_prompt
             }]
             
             # Call Claude with tools
@@ -115,7 +213,20 @@ Make each tweet unique based on what actually happened in the game!"""
                         result = await mcp_session.call_tool(block.name, arguments=block.input)
                         
                         result_text = result.content[0].text if result.content else "No result"
-                        print(f"     Result: {result_text[:200]}...")
+                        
+                        # Check if result contains debug output
+                        if result_text and "debug" in result_text:
+                            try:
+                                result_json = json.loads(result_text)
+                                if "debug" in result_json and result_json["debug"]:
+                                    print(f"\n{result_json['debug']}")
+                                    print(f"     Result: {json.dumps({k:v for k,v in result_json.items() if k != 'debug'}, indent=2)[:200]}...")
+                                else:
+                                    print(f"     Result: {result_text[:200]}...")
+                            except:
+                                print(f"     Result: {result_text[:200]}...")
+                        else:
+                            print(f"     Result: {result_text[:200]}...")
                         print()
                         
                         tool_results.append({
@@ -232,16 +343,34 @@ async def run_interactive():
                         print(block.text)
 
 
-async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = False):
+async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False):
     """
-    Run agent continuously, checking for games every N minutes.
+    Run agent continuously, checking for games/tweets every N minutes.
     This makes it a true autonomous bot!
     
     Args:
         check_interval_minutes: How often to check (default: 5 minutes)
-        test_mode: Use test data instead of real NBA API
+        test_mode: Use test data instead of real APIs
+        injury_only: Only run injury monitoring
+        box_score_only: Only run box score posting
+        
+    By default (no flags), runs BOTH injury and box score monitoring.
     """
-    mode_text = "🧪 TEST MODE" if test_mode else "🤖 AUTONOMOUS MODE"
+    if test_mode:
+        if injury_only:
+            mode_text = "🧪 TEST - INJURY"
+        elif box_score_only:
+            mode_text = "🧪 TEST - BOX SCORES"
+        else:
+            mode_text = "🧪 TEST - BOTH"
+    else:
+        if injury_only:
+            mode_text = "🤖 AUTONOMOUS - INJURY"
+        elif box_score_only:
+            mode_text = "🤖 AUTONOMOUS - BOX SCORES"
+        else:
+            mode_text = "🤖 AUTONOMOUS - BOTH"
+    
     print("=" * 60)
     print(f"NBA AI AGENT - {mode_text}")
     print("=" * 60)
@@ -261,7 +390,7 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
             
             # Run the agent
             try:
-                await run_agent(test_mode=test_mode)
+                await run_agent(test_mode=test_mode, injury_only=injury_only, box_score_only=box_score_only)
             except Exception as e:
                 print(f"❌ Error during check: {e}")
                 print("   Will retry on next interval...")
@@ -276,32 +405,56 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
 
 
 if __name__ == "__main__":
-    import sys
+    import argparse
     
-    test_mode = "--test" in sys.argv or "test" in sys.argv
-    args = [a for a in sys.argv[1:] if a not in ["--test", "test"]]
+    parser = argparse.ArgumentParser(
+        description="NBA AI Agent - Automated box scores and injury monitoring",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                      # Run both box scores and injuries
+  %(prog)s --test               # Test both with dummy data
+  %(prog)s --box_score          # Only box scores (production)
+  %(prog)s --injury             # Only injuries (production)
+  %(prog)s --test --box_score   # Test box scores only
+  %(prog)s loop                 # Run both continuously (every 5 min)
+  %(prog)s loop 60              # Run both every 60 minutes
+  %(prog)s loop 5 --injury      # Injuries only, every 5 minutes
+        """
+    )
     
-    if len(args) > 0:
-        if args[0] == "interactive":
-            print("❌ Interactive mode not yet supported with test mode")
-            print("   Use: python ai_agent.py interactive")
-            sys.exit(1)
-        elif args[0] == "loop":
-            # Continuous mode with optional interval
-            interval = int(args[1]) if len(args) > 1 else 5
-            asyncio.run(run_agent_loop(interval, test_mode=test_mode))
-        elif args[0] == "test":
-            # Explicit test mode
-            asyncio.run(run_agent(test_mode=True))
-        else:
-            print("Usage:")
-            print("  python ai_agent.py              # Run once (real data)")
-            print("  python ai_agent.py test         # Run once (test data)")
-            print("  python ai_agent.py --test       # Run once (test data)")
-            print("  python ai_agent.py loop [N]     # Run every N minutes (default: 5)")
-            print("  python ai_agent.py loop 5 --test  # Test mode with loop")
-            print("  python ai_agent.py interactive  # Interactive chat mode")
+    # Mode flags
+    parser.add_argument('--test', action='store_true', 
+                        help='Use test mode with dummy data (no real API calls)')
+    parser.add_argument('--injury', action='store_true',
+                        help='Only monitor injuries (not box scores)')
+    parser.add_argument('--box_score', '--box_score', dest='box_score', action='store_true',
+                        help='Only post box scores (not injuries)')
+    
+    # Subcommands
+    parser.add_argument('command', nargs='?', choices=['loop', 'interactive'],
+                        help='Run mode: loop (continuous) or interactive (chat)')
+    parser.add_argument('interval', nargs='?', type=int, default=5,
+                        help='Loop interval in minutes (default: 5)')
+    
+    args = parser.parse_args()
+    
+    # Determine mode
+    test_mode = args.test
+    injury_only = args.injury and not args.box_score
+    box_score_only = args.box_score and not args.injury
+    
+    # Execute based on command
+    if args.command == 'interactive':
+        print("❌ Interactive mode not yet supported")
+        print("   Use: python ai_agent.py [--test] [--injury | --box_score]")
+        exit(1)
+    elif args.command == 'loop':
+        asyncio.run(run_agent_loop(args.interval, test_mode=test_mode, 
+                                   injury_only=injury_only, box_score_only=box_score_only))
     else:
-        asyncio.run(run_agent(test_mode=test_mode))
+        # Single run
+        asyncio.run(run_agent(test_mode=test_mode, injury_only=injury_only, 
+                             box_score_only=box_score_only))
 
 

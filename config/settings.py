@@ -18,7 +18,10 @@ class Settings:
     TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
     TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
     
-    # OpenAI API Key (optional - only needed for tweet monitoring)
+    # Anthropic API Key (required for AI agent and injury detection)
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    
+    # OpenAI API Key (DEPRECATED - now using Claude for everything)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     
     # Target Account (optional - only needed for tweet monitoring)
@@ -50,9 +53,9 @@ class Settings:
             "TWITTER_BEARER_TOKEN",
         ]
         
-        # Only required if tweet monitoring is enabled
-        if cls.ENABLE_TWEET_MONITORING:
-            required_settings.append("OPENAI_API_KEY")
+        # Anthropic API key required for AI agent features
+        if cls.ENABLE_TWEET_MONITORING or cls.ENABLE_BOX_SCORE_POSTING:
+            required_settings.append("ANTHROPIC_API_KEY")
         
         missing = []
         for setting in required_settings:
