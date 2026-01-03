@@ -154,18 +154,19 @@ async def generate_custom_tweet(game_id: str, style: str = "exciting") -> str:
 @mcp.tool()
 async def post_custom_tweet(game_id: str, tweet_text: str) -> Dict[str, Any]:
     """
-    Post a custom tweet (uses real Twitter, but marks as test in database).
+    Post a custom tweet. In TEST MODE, only generates and prints the tweet text without posting.
     """
     session = db_manager.get_session()
     
     try:
-        # Check if already posted
+        # Check if already posted (in test mode, we still track this)
         existing = session.query(BoxScorePost).filter_by(game_id=game_id).first()
         if existing:
             return {
                 "success": False,
                 "error": "Already posted",
-                "tweet_id": existing.tweet_id
+                "tweet_id": existing.tweet_id,
+                "note": "TEST MODE - Game already processed"
             }
         
         # Get game info
@@ -173,13 +174,16 @@ async def post_custom_tweet(game_id: str, tweet_text: str) -> Dict[str, Any]:
         if not game_data:
             return {"success": False, "error": f"Test game {game_id} not found"}
         
-        # Post to Twitter (real posting!)
-        tweet_id = twitter_client.post_tweet(tweet_text + "\n\n🧪 TEST POST")
+        # TEST MODE: Don't post to Twitter, just print and simulate success
+        print("\n" + "=" * 60)
+        print("🧪 TEST MODE - Generated Tweet (NOT posted to Twitter):")
+        print("=" * 60)
+        print(tweet_text)
+        print("=" * 60)
+        print(f"Length: {len(tweet_text)} characters")
+        print("=" * 60 + "\n")
         
-        if not tweet_id:
-            return {"success": False, "error": "Failed to post to Twitter"}
-        
-        # Save to database
+        # Save to database with test marker (so it won't try to post again)
         from datetime import datetime
         box_score_post = BoxScorePost(
             game_id=game_id,
@@ -189,7 +193,7 @@ async def post_custom_tweet(game_id: str, tweet_text: str) -> Dict[str, Any]:
             home_score=game_data["home_score"],
             away_score=game_data["away_score"],
             post_text=tweet_text,
-            tweet_id=tweet_id,
+            tweet_id="TEST_MODE_NO_POST",  # Fake tweet ID to mark as processed
             posted_at=datetime.utcnow()
         )
         session.add(box_score_post)
@@ -197,9 +201,10 @@ async def post_custom_tweet(game_id: str, tweet_text: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "tweet_id": tweet_id,
+            "tweet_id": "TEST_MODE_NO_POST",
             "game_id": game_id,
-            "note": "TEST MODE - Tweet includes 'TEST POST' marker"
+            "tweet_text": tweet_text,
+            "note": "TEST MODE - Tweet generated but NOT posted to Twitter. See console output above."
         }
         
     except Exception as e:
@@ -212,12 +217,15 @@ async def post_custom_tweet(game_id: str, tweet_text: str) -> Dict[str, Any]:
 @mcp.tool()
 async def post_game_to_twitter(game_id: str) -> Dict[str, Any]:
     """
-    Post using old format (fallback).
+    Post using old format (fallback). In TEST MODE, only generates tweet text.
     """
-    # Use generate_custom_tweet and post_custom_tweet
-    tweet_data = await generate_custom_tweet(game_id)
-    # This is a simplified version - in practice Claude should use generate_custom_tweet + post_custom_tweet
-    return await post_custom_tweet(game_id, "Test tweet")
+    # Format the tweet first
+    tweet_text = await format_game_tweet(game_id)
+    if tweet_text.startswith("Error"):
+        return {"success": False, "error": tweet_text}
+    
+    # Use post_custom_tweet (which handles test mode)
+    return await post_custom_tweet(game_id, tweet_text)
 
 
 @mcp.tool()
