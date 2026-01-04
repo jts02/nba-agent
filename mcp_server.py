@@ -445,7 +445,7 @@ Respond with ONLY the tweet text, nothing else."""
 
     try:
         response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=150,
             temperature=0.7,
             messages=[{"role": "user", "content": prompt}]
@@ -614,7 +614,7 @@ Requirements:
 Respond with ONLY the tweet text, nothing else."""
 
                     response = client.messages.create(
-                        model="claude-3-5-sonnet-20241022",
+                        model="claude-sonnet-4-20250514",
                         max_tokens=150,
                         temperature=0.7,
                         messages=[{"role": "user", "content": prompt}]
