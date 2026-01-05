@@ -322,7 +322,7 @@ async def save_snapshot(
 def calculate_tweet_similarity(tweet1: str, tweet2: str) -> float:
     """
     Calculate similarity between two tweets (0.0 to 1.0).
-    Checks for overlapping player names, keywords, and sentiment.
+    Checks for overlapping player names, keywords, stats, and comparisons.
     """
     # Normalize both tweets
     t1 = tweet1.upper()
@@ -331,12 +331,38 @@ def calculate_tweet_similarity(tweet1: str, tweet2: str) -> float:
     # Extract key phrases and player names
     keywords = ['BRICK', 'PERFECT', 'TRADE', 'BENCH', 'FIRE', 'HOT', 'COLD', 
                 'MISS', 'MAKE', '0 PTS', '0 REBS', 'GOAT', 'TRASH', 'CLOWN',
-                'FROM 3', 'FROM THREE', 'SHOOTING', 'POINTS', 'REBOUNDS']
+                'FROM 3', 'FROM THREE', 'SHOOTING', 'POINTS', 'REBOUNDS', 
+                'HALFTIME', 'QUARTER', 'SHAMBLES', 'MAX PLAYER', 'MAX MY ASS',
+                'LITERALLY', 'IS HIM']
     
     # Common Heat player last names and nicknames
     players = ['BAM', 'ADEBAYO', 'ADE-BRICK', 'JIMMY', 'BUTLER', 'TYLER', 'HERRO', 
                'HER-NO', 'NORMAN', 'POWELL', 'NORM', 'JOVIC', 'HIGHSMITH', 'ROBINSON', 
                'ROZIER', 'MARTIN', 'WARE', 'NIKOLA']
+    
+    # Famous player comparisons (high similarity if same comparison)
+    comparisons = ['KLAY THOMPSON', 'STEPH CURRY', 'MICHAEL JORDAN', 'LEBRON', 
+                   'PRIME WADE', 'SHAQ', 'KAREEM', 'MAGIC']
+    
+    # Check for stat patterns (e.g., "5/6 FROM THREE", "20 PTS")
+    import re
+    stat_patterns = [
+        r'\d+/\d+\s*FROM\s*(THREE|3)',  # X/Y from three
+        r'\d+\s*PTS',                    # X PTS
+        r'\d+\s*REBS',                   # X REBS
+        r'\d+\s*ASSISTS',                # X ASSISTS
+        r'\d+-\d+',                      # X-Y record
+    ]
+    
+    t1_stats = []
+    t2_stats = []
+    for pattern in stat_patterns:
+        t1_stats.extend(re.findall(pattern, t1))
+        t2_stats.extend(re.findall(pattern, t2))
+    
+    # Count overlapping stats
+    stat_overlap = len(set(t1_stats) & set(t2_stats))
+    stat_total = len(set(t1_stats) | set(t2_stats))
     
     # Count overlapping keywords
     t1_keywords = [k for k in keywords if k in t1]
@@ -350,21 +376,34 @@ def calculate_tweet_similarity(tweet1: str, tweet2: str) -> float:
     player_overlap = len(set(t1_players) & set(t2_players))
     player_total = len(set(t1_players) | set(t2_players))
     
+    # Check for same comparison
+    t1_comparisons = [c for c in comparisons if c in t1]
+    t2_comparisons = [c for c in comparisons if c in t2]
+    comparison_match = len(set(t1_comparisons) & set(t2_comparisons)) > 0
+    
     # Calculate similarity score
     if keyword_total == 0 and player_total == 0:
         return 0.0
     
     keyword_sim = keyword_overlap / keyword_total if keyword_total > 0 else 0
     player_sim = player_overlap / player_total if player_total > 0 else 0
+    stat_sim = stat_overlap / stat_total if stat_total > 0 else 0
     
-    # If same player(s) AND similar sentiment keywords, boost similarity
-    if player_overlap > 0 and keyword_overlap > 0:
-        # Boost for same player + same sentiment
-        boost = 0.2
-        similarity = min(1.0, (player_sim * 0.6) + (keyword_sim * 0.4) + boost)
-    else:
-        # Weighted average (players matter more)
-        similarity = (player_sim * 0.6) + (keyword_sim * 0.4)
+    # Base similarity
+    similarity = (player_sim * 0.5) + (keyword_sim * 0.3) + (stat_sim * 0.2)
+    
+    # Aggressive boosts for high similarity indicators
+    if player_overlap > 0 and stat_overlap > 0:
+        # Same player(s) with same stats = VERY similar
+        similarity = min(1.0, similarity + 0.3)
+    
+    if player_overlap > 0 and keyword_overlap > 1:
+        # Same player(s) with multiple same keywords
+        similarity = min(1.0, similarity + 0.2)
+    
+    if comparison_match:
+        # Same comparison (e.g., both say "KLAY THOMPSON")
+        similarity = min(1.0, similarity + 0.25)
     
     return similarity
 
@@ -404,8 +443,8 @@ async def post_heat_tweet(tweet_text: str, game_id: str, snapshot_id: int) -> Di
             
             similarity = calculate_tweet_similarity(tweet_text, old_snapshot.tweet_text)
             
-            # If similarity is too high (> 60%), reject the tweet
-            if similarity > 0.6:
+            # If similarity is too high (> 45%), reject the tweet
+            if similarity > 0.45:
                 logger.warning(f"Tweet too similar ({similarity:.2f}) to earlier tweet: {old_snapshot.tweet_text[:50]}...")
                 return {
                     "success": False,
