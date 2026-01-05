@@ -40,6 +40,7 @@ class LiveGameSnapshot(Base):
     box_score_json = Column(Text)  # Full box score as JSON
     tweet_posted = Column(Boolean, default=False)
     tweet_id = Column(String(50), nullable=True)
+    tweet_text = Column(Text, nullable=True)  # Store tweet content for similarity checking
 
 
 # Create tables
@@ -318,10 +319,61 @@ async def save_snapshot(
         session.close()
 
 
+def calculate_tweet_similarity(tweet1: str, tweet2: str) -> float:
+    """
+    Calculate similarity between two tweets (0.0 to 1.0).
+    Checks for overlapping player names, keywords, and sentiment.
+    """
+    # Normalize both tweets
+    t1 = tweet1.upper()
+    t2 = tweet2.upper()
+    
+    # Extract key phrases and player names
+    keywords = ['BRICK', 'PERFECT', 'TRADE', 'BENCH', 'FIRE', 'HOT', 'COLD', 
+                'MISS', 'MAKE', '0 PTS', '0 REBS', 'GOAT', 'TRASH', 'CLOWN',
+                'FROM 3', 'FROM THREE', 'SHOOTING', 'POINTS', 'REBOUNDS']
+    
+    # Common Heat player last names and nicknames
+    players = ['BAM', 'ADEBAYO', 'ADE-BRICK', 'JIMMY', 'BUTLER', 'TYLER', 'HERRO', 
+               'HER-NO', 'NORMAN', 'POWELL', 'NORM', 'JOVIC', 'HIGHSMITH', 'ROBINSON', 
+               'ROZIER', 'MARTIN', 'WARE', 'NIKOLA']
+    
+    # Count overlapping keywords
+    t1_keywords = [k for k in keywords if k in t1]
+    t2_keywords = [k for k in keywords if k in t2]
+    keyword_overlap = len(set(t1_keywords) & set(t2_keywords))
+    keyword_total = len(set(t1_keywords) | set(t2_keywords))
+    
+    # Count overlapping player names
+    t1_players = [p for p in players if p in t1]
+    t2_players = [p for p in players if p in t2]
+    player_overlap = len(set(t1_players) & set(t2_players))
+    player_total = len(set(t1_players) | set(t2_players))
+    
+    # Calculate similarity score
+    if keyword_total == 0 and player_total == 0:
+        return 0.0
+    
+    keyword_sim = keyword_overlap / keyword_total if keyword_total > 0 else 0
+    player_sim = player_overlap / player_total if player_total > 0 else 0
+    
+    # If same player(s) AND similar sentiment keywords, boost similarity
+    if player_overlap > 0 and keyword_overlap > 0:
+        # Boost for same player + same sentiment
+        boost = 0.2
+        similarity = min(1.0, (player_sim * 0.6) + (keyword_sim * 0.4) + boost)
+    else:
+        # Weighted average (players matter more)
+        similarity = (player_sim * 0.6) + (keyword_sim * 0.4)
+    
+    return similarity
+
+
 @mcp.tool()
 async def post_heat_tweet(tweet_text: str, game_id: str, snapshot_id: int) -> Dict[str, Any]:
     """
     Post a controversial Heat fan tweet.
+    Checks for similarity with recent tweets to avoid repetition.
     
     Args:
         tweet_text: The spicy take to post
@@ -331,6 +383,38 @@ async def post_heat_tweet(tweet_text: str, game_id: str, snapshot_id: int) -> Di
     session = db_manager.get_session()
     
     try:
+        from datetime import timedelta
+        
+        # Check for similar tweets posted today
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        todays_tweets = (
+            session.query(LiveGameSnapshot)
+            .filter(
+                LiveGameSnapshot.tweet_posted == True,
+                LiveGameSnapshot.snapshot_time >= today_start
+            )
+            .all()
+        )
+        
+        # Check similarity with each tweet from today
+        for old_snapshot in todays_tweets:
+            if not old_snapshot.tweet_text:
+                continue
+            
+            similarity = calculate_tweet_similarity(tweet_text, old_snapshot.tweet_text)
+            
+            # If similarity is too high (> 60%), reject the tweet
+            if similarity > 0.6:
+                logger.warning(f"Tweet too similar ({similarity:.2f}) to earlier tweet: {old_snapshot.tweet_text[:50]}...")
+                return {
+                    "success": False,
+                    "error": f"Tweet too similar to earlier tweet today (similarity: {similarity:.2f})",
+                    "similar_to": old_snapshot.tweet_text,
+                    "similarity_score": similarity,
+                    "blocked": True
+                }
+        
         # Post to Twitter
         tweet_id = twitter_client.post_tweet(tweet_text)
         
@@ -340,11 +424,12 @@ async def post_heat_tweet(tweet_text: str, game_id: str, snapshot_id: int) -> Di
                 "error": "Failed to post tweet"
             }
         
-        # Mark snapshot as tweeted
+        # Mark snapshot as tweeted AND store tweet text
         snapshot = session.query(LiveGameSnapshot).filter_by(id=snapshot_id).first()
         if snapshot:
             snapshot.tweet_posted = True
             snapshot.tweet_id = tweet_id
+            snapshot.tweet_text = tweet_text  # Store for future similarity checks
             session.commit()
         
         return {
