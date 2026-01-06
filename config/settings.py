@@ -21,6 +21,9 @@ class Settings:
     # Anthropic API Key (required for AI agent and injury detection)
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     
+    # X AI API Key (for Grok - used for random shitpost generation)
+    XAI_API_KEY = os.getenv("XAI_API_KEY")
+    
     # OpenAI API Key (DEPRECATED - now using Claude for everything)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     

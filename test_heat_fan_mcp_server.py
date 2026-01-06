@@ -203,6 +203,35 @@ async def check_recent_heat_tweets(game_id: str, minutes: int = 5) -> Dict[str, 
     }
 
 
+@mcp.tool()
+async def generate_random_shitpost() -> Dict[str, Any]:
+    """Generate a random shitpost (returns dummy data in test mode)"""
+    import random
+    
+    dummy_shitposts = [
+        "Breaking: Pat Riley trades Bam for a washing machine. Team chemistry improves immediately 🤡",
+        "Tyler Herro thinks he's Kobe but shoots like my grandma 🗑️",
+        "Jimmy Butler practices 4am workouts just to miss game winners 💀",
+        "Heat culture is just sweating in the gym and pretending it's working 😤",
+        "Bam Adebayo getting paid $200M to set screens 🤡 MAX MY ASS",
+        "Riley about to trade the entire team for cap space and vibes 🔥",
+        "Heat fans really thought we were contenders 💀 CLOWN FRANCHISE",
+    ]
+    
+    shitpost = random.choice(dummy_shitposts)
+    
+    print("\n" + "="*60)
+    print("🎲 GENERATED RANDOM SHITPOST (TEST MODE):")
+    print("="*60)
+    print(shitpost)
+    print("="*60 + "\n")
+    
+    return {
+        "success": True,
+        "shitpost": shitpost
+    }
+
+
 if __name__ == "__main__":
     mcp.run()
 

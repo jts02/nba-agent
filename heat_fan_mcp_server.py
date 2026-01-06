@@ -526,6 +526,103 @@ async def check_recent_heat_tweets(game_id: str, minutes: int = 5) -> Dict[str, 
         session.close()
 
 
+@mcp.tool()
+async def generate_random_shitpost() -> Dict[str, Any]:
+    """
+    Generate a random, unhinged shitpost about the Miami Heat using X AI (Grok).
+    Use this when there's no interesting box score update but you still want to engage.
+    
+    The shitpost can be about:
+    - Heat players (current or past)
+    - Pat Riley
+    - Heat culture
+    - Heat trades/rumors
+    - Whatever Grok thinks is funny
+    
+    Returns the generated shitpost text or an error.
+    """
+    from openai import OpenAI
+    
+    try:
+        # Check if XAI_API_KEY is available
+        xai_api_key = settings.XAI_API_KEY
+        if not xai_api_key:
+            return {
+                "success": False,
+                "error": "XAI_API_KEY not configured. Set it in your .env file."
+            }
+        
+        # Initialize X AI client
+        client = OpenAI(
+            api_key=xai_api_key,
+            base_url="https://api.x.ai/v1",
+        )
+        
+        # System prompt with safety rules
+        system_prompt = """You are a hilarious, unhinged Miami Heat superfan who writes short shitposts.
+
+RULES:
+- Write ONE short tweet (100-150 characters max)
+- Be controversial, funny, and spicy 🔥
+- Can roast or praise Heat players, Pat Riley, Heat culture, trades, etc.
+- Use emojis: 🔥💪😤🤡👑🗑️💀
+- Be creative and unpredictable
+
+NEVER:
+- Joke about death, dying, killing, murdering, or violence
+- Make racist or discriminatory jokes
+- Be boring or safe
+
+EXAMPLES:
+- "Breaking: Pat Riley trades Bam for a washing machine. Team chemistry improves immediately 🤡"
+- "Tyler Herro thinks he's Kobe but shoots like my grandma 🗑️"
+- "Jimmy Butler practices 4am workouts just to miss game winners 💀"
+- "Heat culture is just sweating in the gym and pretending it's working 😤"
+Some themes for inspiration:
+- Pat Riley is washed, past his prime, makes no trades or moves.
+- Bam Adebayo has zero offensive skills and no touch. 
+- Tyler Herro is always injured
+- Norman Powell chucks too many shots
+
+Please refer to twitter for recent news and events to make the shitpost more relevant.
+Write a random, spicy shitpost about the Miami Heat RIGHT NOW:"""
+        
+        user_prompt = f"Generate a random, controversial Miami Heat shitpost. Today's date: {datetime.now().strftime('%B %d, %Y')}. Make it fresh and unpredictable."
+        
+        # Call Grok
+        response = client.chat.completions.create(
+            model="grok-3",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.9,
+            max_tokens=200,
+        )
+        
+        shitpost = response.choices[0].message.content.strip()
+        
+        # Clean up the shitpost (remove quotes if Grok added them)
+        if shitpost.startswith('"') and shitpost.endswith('"'):
+            shitpost = shitpost[1:-1]
+        if shitpost.startswith("'") and shitpost.endswith("'"):
+            shitpost = shitpost[1:-1]
+        
+        logger.info(f"Generated random shitpost: {shitpost}")
+        
+        return {
+            "success": True,
+            "shitpost": shitpost
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating random shitpost: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 if __name__ == "__main__":
     mcp.run()
 
