@@ -17,19 +17,20 @@ from mcp.client.stdio import stdio_client
 load_dotenv()
 
 
-async def run_agent(test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False):
+async def run_agent(test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False, shams_shitpost: bool = False):
     """Run AI agent with Claude + MCP.
     
     Args:
         test_mode: Use test data instead of real APIs
         injury_only: Only run injury monitoring (not box scores)
         box_score_only: Only run box score posting (not injuries)
+        shams_shitpost: Only generate troll shitposts from Shams tweets
         
     By default (no flags), runs BOTH injury and box score monitoring.
     """
     # Determine what to run
-    run_injuries = not box_score_only  # Run injuries unless box_score_only
-    run_box_scores = not injury_only   # Run box scores unless injury_only
+    run_injuries = not box_score_only and not shams_shitpost  # Run injuries unless box_score_only or shams_shitpost
+    run_box_scores = not injury_only and not shams_shitpost   # Run box scores unless injury_only or shams_shitpost
     
     # Determine mode text
     if test_mode:
@@ -37,6 +38,8 @@ async def run_agent(test_mode: bool = False, injury_only: bool = False, box_scor
             mode_text = "🧪 TEST MODE - INJURY MONITORING (Using dummy tweets)"
         elif box_score_only:
             mode_text = "🧪 TEST MODE - BOX SCORES (Using dummy games)"
+        elif shams_shitpost:
+            mode_text = "🧪 TEST MODE - SHAMS SHITPOSTS (Using dummy tweets)"
         else:
             mode_text = "🧪 TEST MODE - BOX SCORES & INJURIES (Using dummy data)"
     else:
@@ -44,6 +47,8 @@ async def run_agent(test_mode: bool = False, injury_only: bool = False, box_scor
             mode_text = "🤖 NBA AI AGENT - INJURY MONITORING"
         elif box_score_only:
             mode_text = "🤖 NBA AI AGENT - BOX SCORES"
+        elif shams_shitpost:
+            mode_text = "🤖 NBA AI AGENT - SHAMS SHITPOST MODE 🤡"
         else:
             mode_text = "🤖 NBA AI AGENT - BOX SCORES & INJURIES"
     
@@ -66,6 +71,8 @@ async def run_agent(test_mode: bool = False, injury_only: bool = False, box_scor
             mcp_script = "test_injury_mcp_server.py"
         elif box_score_only:
             mcp_script = "test_mcp_server.py"
+        elif shams_shitpost:
+            mcp_script = "test_injury_mcp_server.py"  # Has tweets and shitpost tools
         else:
             # Test both - use combined test server
             mcp_script = "test_combined_mcp_server.py"
@@ -102,10 +109,39 @@ async def run_agent(test_mode: bool = False, injury_only: bool = False, box_scor
             
             # Determine mode based on flags (not just available tools)
             # This ensures --box_score doesn't try to call injury APIs
-            run_both = not injury_only and not box_score_only
+            run_both = not injury_only and not box_score_only and not shams_shitpost
             
             # Set task and prompt based on mode flags
-            if run_both:
+            if shams_shitpost:
+                # Shams shitpost mode - troll the NBA insider!
+                task_description = "Generate troll shitposts from Shams tweets"
+                user_prompt = """You are a hilarious NBA troll who makes absurd parody tweets.
+
+Your job:
+1. Use get_recent_tweets() to get latest tweets from Shams Charania
+2. Pick the most recent interesting tweet (trade news, injury news, signings, etc.)
+3. Use generate_shams_shitpost() with that tweet to create a troll/parody version
+4. Use post_shams_shitpost() to post it AS A DIRECT REPLY to Shams' tweet
+   - IMPORTANT: Pass the original_tweet_id parameter so it replies directly
+   - Set reply_to_tweet=True (this is the default)
+   - This makes your shitpost show up in Shams' mentions! 🤡
+
+The shitpost should be:
+- Absurd and over-the-top
+- Obviously a parody/joke
+- Making fun of NBA drama culture
+- Short and punchy (100-180 chars)
+- Using emojis 🤡💀😂🔥
+
+Example workflow:
+- Shams tweets (ID: 123456): "Lakers sign LeBron to 2-year extension"
+- Your shitpost: "Breaking: Lakers give LeBron lifetime supply of wine and golf cart 🍷🤡"
+- You post it with: post_shams_shitpost(shitpost_text="...", original_tweet_id="123456", reply_to_tweet=True)
+- Result: Your reply shows up under Shams' tweet!
+
+Be creative and ridiculous! Make it obvious satire."""
+            
+            elif run_both:
                 # BOTH modes - this is the default!
                 task_description = "Check for NBA games AND injury tweets"
                 user_prompt = """You are a comprehensive NBA social media manager handling both game recaps and injury news.
@@ -343,7 +379,7 @@ async def run_interactive():
                         print(block.text)
 
 
-async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False):
+async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = False, injury_only: bool = False, box_score_only: bool = False, shams_shitpost: bool = False):
     """
     Run agent continuously, checking for games/tweets every N minutes.
     This makes it a true autonomous bot!
@@ -353,6 +389,7 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
         test_mode: Use test data instead of real APIs
         injury_only: Only run injury monitoring
         box_score_only: Only run box score posting
+        shams_shitpost: Only generate Shams shitposts
         
     By default (no flags), runs BOTH injury and box score monitoring.
     """
@@ -361,6 +398,8 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
             mode_text = "🧪 TEST - INJURY"
         elif box_score_only:
             mode_text = "🧪 TEST - BOX SCORES"
+        elif shams_shitpost:
+            mode_text = "🧪 TEST - SHAMS SHITPOSTS 🤡"
         else:
             mode_text = "🧪 TEST - BOTH"
     else:
@@ -368,6 +407,8 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
             mode_text = "🤖 AUTONOMOUS - INJURY"
         elif box_score_only:
             mode_text = "🤖 AUTONOMOUS - BOX SCORES"
+        elif shams_shitpost:
+            mode_text = "🤖 AUTONOMOUS - SHAMS SHITPOSTS 🤡"
         else:
             mode_text = "🤖 AUTONOMOUS - BOTH"
     
@@ -390,7 +431,7 @@ async def run_agent_loop(check_interval_minutes: int = 5, test_mode: bool = Fals
             
             # Run the agent
             try:
-                await run_agent(test_mode=test_mode, injury_only=injury_only, box_score_only=box_score_only)
+                await run_agent(test_mode=test_mode, injury_only=injury_only, box_score_only=box_score_only, shams_shitpost=shams_shitpost)
             except Exception as e:
                 print(f"❌ Error during check: {e}")
                 print("   Will retry on next interval...")
@@ -416,10 +457,13 @@ Examples:
   %(prog)s --test               # Test both with dummy data
   %(prog)s --box_score          # Only box scores (production)
   %(prog)s --injury             # Only injuries (production)
+  %(prog)s --shams              # Only Shams shitposts (production) 🤡
   %(prog)s --test --box_score   # Test box scores only
+  %(prog)s --test --shams       # Test Shams shitposts
   %(prog)s loop                 # Run both continuously (every 5 min)
   %(prog)s loop 60              # Run both every 60 minutes
   %(prog)s loop 5 --injury      # Injuries only, every 5 minutes
+  %(prog)s loop 10 --shams      # Shams shitposts every 10 minutes 🤡
         """
     )
     
@@ -430,6 +474,8 @@ Examples:
                         help='Only monitor injuries (not box scores)')
     parser.add_argument('--box_score', '--box_score', dest='box_score', action='store_true',
                         help='Only post box scores (not injuries)')
+    parser.add_argument('--shams', action='store_true',
+                        help='Only generate troll shitposts from Shams tweets 🤡')
     
     # Subcommands
     parser.add_argument('command', nargs='?', choices=['loop', 'interactive'],
@@ -441,20 +487,30 @@ Examples:
     
     # Determine mode
     test_mode = args.test
-    injury_only = args.injury and not args.box_score
-    box_score_only = args.box_score and not args.injury
+    
+    # Only one mode can be active at a time
+    mode_count = sum([args.injury, args.box_score, args.shams])
+    if mode_count > 1:
+        print("❌ Error: Only one mode can be active at a time")
+        print("   Choose one: --injury, --box_score, or --shams")
+        exit(1)
+    
+    injury_only = args.injury
+    box_score_only = args.box_score
+    shams_shitpost = args.shams
     
     # Execute based on command
     if args.command == 'interactive':
         print("❌ Interactive mode not yet supported")
-        print("   Use: python ai_agent.py [--test] [--injury | --box_score]")
+        print("   Use: python ai_agent.py [--test] [--injury | --box_score | --shams]")
         exit(1)
     elif args.command == 'loop':
         asyncio.run(run_agent_loop(args.interval, test_mode=test_mode, 
-                                   injury_only=injury_only, box_score_only=box_score_only))
+                                   injury_only=injury_only, box_score_only=box_score_only,
+                                   shams_shitpost=shams_shitpost))
     else:
         # Single run
         asyncio.run(run_agent(test_mode=test_mode, injury_only=injury_only, 
-                             box_score_only=box_score_only))
+                             box_score_only=box_score_only, shams_shitpost=shams_shitpost))
 
 

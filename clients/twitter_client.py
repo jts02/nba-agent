@@ -130,33 +130,54 @@ class TwitterClient:
             logger.error(f"Error quoting tweet {tweet_id}: {e}")
             return None
     
-    def post_tweet(self, text: str) -> Optional[str]:
+    def post_tweet(self, text: str, reply_to_tweet_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Post a new tweet.
+        Post a new tweet, optionally as a reply to another tweet.
         
         Args:
             text: Tweet text (max 280 characters)
+            reply_to_tweet_id: Optional tweet ID to reply to
             
         Returns:
-            ID of the new tweet or None if failed
+            Dict with tweet data or None if failed
         """
         try:
             if len(text) > 280:
                 logger.warning(f"Tweet text too long ({len(text)} chars), truncating")
                 text = text[:277] + "..."
             
-            response = self.client.create_tweet(text=text)
+            kwargs = {"text": text}
+            if reply_to_tweet_id:
+                kwargs["in_reply_to_tweet_id"] = reply_to_tweet_id
+            
+            response = self.client.create_tweet(**kwargs)
             
             if response.data:
                 tweet_id = str(response.data["id"])
-                logger.info(f"Successfully posted tweet {tweet_id}")
-                return tweet_id
+                if reply_to_tweet_id:
+                    logger.info(f"Successfully posted reply {tweet_id} to tweet {reply_to_tweet_id}")
+                else:
+                    logger.info(f"Successfully posted tweet {tweet_id}")
+                return response.data
             
             return None
             
         except tweepy.TweepyException as e:
             logger.error(f"Error posting tweet: {e}")
             return None
+    
+    def reply_to_tweet(self, tweet_id: str, reply_text: str) -> Optional[Dict[str, Any]]:
+        """
+        Reply directly to a specific tweet.
+        
+        Args:
+            tweet_id: ID of the tweet to reply to
+            reply_text: Text of the reply (max 280 characters)
+            
+        Returns:
+            Dict with reply tweet data or None if failed
+        """
+        return self.post_tweet(reply_text, reply_to_tweet_id=tweet_id)
     
     def get_latest_tweet_id(self, username: str) -> Optional[str]:
         """

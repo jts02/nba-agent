@@ -310,6 +310,96 @@ async def get_processed_injury_tweets() -> List[Dict[str, Any]]:
         session.close()
 
 
+@mcp.tool()
+async def generate_shams_shitpost(tweet_text: str) -> Dict[str, Any]:
+    """
+    Generate a troll/shitpost response to a Shams tweet (TEST MODE - returns dummy shitpost).
+    
+    Args:
+        tweet_text: The original Shams tweet
+        
+    Returns:
+        A dictionary with a dummy generated shitpost
+    """
+    import random
+    
+    # Dummy shitpost templates based on the tweet content
+    shitpost_templates = [
+        "Breaking: {tweet_summary} also includes a lifetime supply of excuses 🤡",
+        "{tweet_summary} doctors say this injury is from carrying too much disappointment 💀",
+        "{tweet_summary} team chemistry improves immediately 😂",
+        "Sources: {tweet_summary} actually just forgot how to play basketball 🗑️",
+        "{tweet_summary} league sources say this is because of bad vibes 🔥",
+    ]
+    
+    # Extract a short summary from the tweet
+    if "injury" in tweet_text.lower() or "out" in tweet_text.lower():
+        summary = "Player out indefinitely"
+    elif "trade" in tweet_text.lower() or "sign" in tweet_text.lower():
+        summary = "Team makes questionable move"
+    elif "extension" in tweet_text.lower() or "contract" in tweet_text.lower():
+        summary = "Player gets overpaid"
+    else:
+        summary = "NBA drama continues"
+    
+    template = random.choice(shitpost_templates)
+    shitpost = template.format(tweet_summary=summary)
+    
+    print("\n" + "="*60)
+    print("🎲 GENERATED SHAMS SHITPOST (TEST MODE):")
+    print("="*60)
+    print(f"Original: {tweet_text[:100]}...")
+    print(f"Shitpost: {shitpost}")
+    print("="*60 + "\n")
+    
+    return {
+        "success": True,
+        "original_tweet": tweet_text,
+        "shitpost": shitpost
+    }
+
+
+@mcp.tool()
+async def post_shams_shitpost(
+    shitpost_text: str, 
+    original_tweet_id: str = "", 
+    reply_to_tweet: bool = True
+) -> Dict[str, Any]:
+    """
+    Post a Shams shitpost (TEST MODE - just prints, doesn't actually post).
+    
+    Args:
+        shitpost_text: The troll/parody tweet text
+        original_tweet_id: Tweet ID of the original Shams tweet
+        reply_to_tweet: If True and tweet_id provided, post as a reply
+        
+    Returns:
+        Success status with dummy tweet ID
+    """
+    is_reply = reply_to_tweet and bool(original_tweet_id)
+    
+    print("\n" + "="*60)
+    if is_reply:
+        print("🔥 WOULD POST SHAMS SHITPOST (AS REPLY):")
+    else:
+        print("🔥 WOULD POST SHAMS SHITPOST (STANDALONE):")
+    print("="*60)
+    print(shitpost_text)
+    if is_reply:
+        print(f"\n💬 Replying to tweet ID: {original_tweet_id}")
+        print(f"   (This would show up in Shams' mentions!)")
+    print("="*60 + "\n")
+    
+    return {
+        "success": True,
+        "tweet_id": f"test_shitpost_{int(datetime.now().timestamp())}",
+        "tweet_text": shitpost_text,
+        "replied_to": original_tweet_id if is_reply else None,
+        "is_reply": is_reply,
+        "message": "TEST MODE - Shitpost reply would be posted!" if is_reply else "TEST MODE - Shitpost would be posted!"
+    }
+
+
 if __name__ == "__main__":
     mcp.run()
 

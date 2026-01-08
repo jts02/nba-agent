@@ -683,6 +683,170 @@ Respond with ONLY the tweet text, nothing else."""
         session.close()
 
 
+@mcp.tool()
+async def generate_shams_shitpost(tweet_text: str) -> Dict[str, Any]:
+    """
+    Generate a troll/shitpost response to a Shams Charania tweet using X AI (Grok).
+    Takes a serious NBA news tweet and makes it absurd and funny.
+    
+    Args:
+        tweet_text: The original Shams tweet to make fun of
+        
+    Returns:
+        A dictionary with the generated shitpost
+    """
+    from openai import OpenAI
+    
+    try:
+        # Check if XAI_API_KEY is available
+        xai_api_key = settings.XAI_API_KEY
+        if not xai_api_key:
+            return {
+                "success": False,
+                "error": "XAI_API_KEY not configured. Set it in your .env file."
+            }
+        
+        # Initialize X AI client
+        client = OpenAI(
+            api_key=xai_api_key,
+            base_url="https://api.x.ai/v1",
+        )
+        
+        # System prompt for trolling Shams tweets
+        system_prompt = """You are a hilarious NBA troll who makes absurd shitposts based on serious NBA news.
+
+Your job is to take a serious tweet from NBA insider Shams Charania and create a PARODY tweet that:
+- Mocks the seriousness of NBA news
+- Makes absurd exaggerations
+- Adds ridiculous fake details
+- Is obviously a joke/satire
+- Keeps it SHORT (100-180 characters)
+- Uses emojis for maximum chaos
+
+RULES:
+✅ Be absurd, ridiculous, over-the-top
+✅ Mock the players, teams, reporters, NBA drama
+✅ Exaggerate wildly
+✅ Add fake trade details, made-up stats, etc.
+✅ Use emojis: 🤡💀😂🔥🗑️
+
+❌ NEVER joke about death, dying, killing, violence
+❌ NEVER make racist or discriminatory jokes
+❌ NEVER be mean-spirited - keep it playful
+
+EXAMPLES:
+
+Original: "Lakers sign LeBron James to 2-year extension"
+Shitpost: "Breaking: Lakers give LeBron a lifetime supply of wine and a golf cart for the bench 🍷🤡"
+
+Original: "Bam Adebayo out 2 weeks with ankle sprain"
+Shitpost: "Bam Adebayo out 2 weeks because he forgot how to score 💀 doctors say it's permanent"
+
+Original: "Kawhi Leonard expected to miss next 5 games"
+Shitpost: "Kawhi Leonard load managing the entire season again 😂 mans getting paid $50M to sit courtside"
+
+Original: "Heat trading for Bradley Beal, sources say"
+Shitpost: "Heat trading their entire roster for Bradley Beal's injury report 🗑️ Riley masterclass"
+
+Keep it ABSURD and SHORT!"""
+        
+        user_prompt = f"""Original Shams tweet:
+"{tweet_text}"
+
+Generate a troll/parody tweet making fun of this. Keep it short, absurd, and funny!"""
+        
+        # Call Grok
+        response = client.chat.completions.create(
+            model="grok-3",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.9,
+            max_tokens=200,
+        )
+        
+        shitpost = response.choices[0].message.content.strip()
+        
+        # Clean up the shitpost (remove quotes if Grok added them)
+        if shitpost.startswith('"') and shitpost.endswith('"'):
+            shitpost = shitpost[1:-1]
+        if shitpost.startswith("'") and shitpost.endswith("'"):
+            shitpost = shitpost[1:-1]
+        
+        logger.info(f"Generated Shams shitpost: {shitpost}")
+        
+        return {
+            "success": True,
+            "original_tweet": tweet_text,
+            "shitpost": shitpost
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating Shams shitpost: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@mcp.tool()
+async def post_shams_shitpost(
+    shitpost_text: str, 
+    original_tweet_id: str = "", 
+    reply_to_tweet: bool = True
+) -> Dict[str, Any]:
+    """
+    Post a Shams shitpost to Twitter, optionally as a direct reply.
+    
+    Args:
+        shitpost_text: The troll/parody tweet text
+        original_tweet_id: Tweet ID of the original Shams tweet
+        reply_to_tweet: If True and tweet_id provided, post as a reply (default: True)
+        
+    Returns:
+        Success status and tweet ID
+    """
+    try:
+        # Determine if we're replying or posting standalone
+        reply_id = original_tweet_id if (reply_to_tweet and original_tweet_id) else None
+        
+        # Post to Twitter (as reply or standalone)
+        response = twitter_client.post_tweet(shitpost_text, reply_to_tweet_id=reply_id)
+        
+        if response and "id" in response:
+            tweet_id = str(response["id"])
+            
+            if reply_id:
+                logger.info(f"Posted Shams shitpost reply: {tweet_id} (replying to {reply_id})")
+                message = f"Shitpost reply posted successfully! (replied to {reply_id})"
+            else:
+                logger.info(f"Posted Shams shitpost: {tweet_id}")
+                message = "Shitpost posted successfully!"
+            
+            return {
+                "success": True,
+                "tweet_id": tweet_id,
+                "tweet_text": shitpost_text,
+                "replied_to": reply_id,
+                "is_reply": bool(reply_id),
+                "message": message
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Failed to post tweet",
+                "response": response
+            }
+            
+    except Exception as e:
+        logger.error(f"Error posting Shams shitpost: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 if __name__ == "__main__":
     # MCP servers run over stdio (Standard Input/Output)
     # This allows an LLM client (like Claude via LangChain) to communicate
