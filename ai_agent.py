@@ -324,7 +324,28 @@ async def run_interactive():
             client = Anthropic(api_key=api_key)
             
             print("✅ Ready! Type your requests (or 'quit' to exit)")
+            print("\n💡 Example requests:")
+            print("   - Check today's completed games")
+            print("   - Show me yesterday's games")
+            print("   - Get box score for game 0022500471")
+            print("   - Check Shams' recent tweets")
+            print("   - Post about the best game from 2025-01-10")
             print("=" * 60)
+            
+            # System prompt for interactive mode
+            system_prompt = """You are an NBA AI assistant with access to live NBA data and Twitter.
+
+You can:
+- Query games from ANY date (today, yesterday, or any specific date like "2025-01-10")
+  * Use get_completed_games_today() for today's games
+  * Use get_completed_games_by_date(date="YYYY-MM-DD") for any other date
+- Get detailed box scores for any game
+- Check for injuries from Shams Charania's tweets
+- Generate and post tweets about games
+- Create troll shitposts
+
+When the user asks about "yesterday" or "last night", calculate the date and use get_completed_games_by_date().
+Always be helpful and provide detailed information about games and players."""
             
             messages = []
             
@@ -344,6 +365,7 @@ async def run_interactive():
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=1024,
+                    system=system_prompt,
                     tools=claude_tools,
                     messages=messages
                 )
@@ -367,6 +389,7 @@ async def run_interactive():
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=1024,
+                        system=system_prompt,
                         tools=claude_tools,
                         messages=messages
                     )
@@ -453,11 +476,12 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                      # Run both box scores and injuries
+  %(prog)s                      # Run both box scores and injuries (single check)
   %(prog)s --test               # Test both with dummy data
   %(prog)s --box_score          # Only box scores (production)
   %(prog)s --injury             # Only injuries (production)
   %(prog)s --shams              # Only Shams shitposts (production) 🤡
+  %(prog)s --interactive        # Chat mode - ask questions, query any date
   %(prog)s --test --box_score   # Test box scores only
   %(prog)s --test --shams       # Test Shams shitposts
   %(prog)s loop                 # Run both continuously (every 5 min)
@@ -476,10 +500,12 @@ Examples:
                         help='Only post box scores (not injuries)')
     parser.add_argument('--shams', action='store_true',
                         help='Only generate troll shitposts from Shams tweets 🤡')
+    parser.add_argument('--interactive', action='store_true',
+                        help='Run in interactive chat mode')
     
     # Subcommands
-    parser.add_argument('command', nargs='?', choices=['loop', 'interactive'],
-                        help='Run mode: loop (continuous) or interactive (chat)')
+    parser.add_argument('command', nargs='?', choices=['loop'],
+                        help='Run mode: loop (continuous)')
     parser.add_argument('interval', nargs='?', type=int, default=5,
                         help='Loop interval in minutes (default: 5)')
     
@@ -488,7 +514,12 @@ Examples:
     # Determine mode
     test_mode = args.test
     
-    # Only one mode can be active at a time
+    # Interactive mode is separate
+    if args.interactive:
+        asyncio.run(run_interactive())
+        exit(0)
+    
+    # Only one mode can be active at a time (for non-interactive)
     mode_count = sum([args.injury, args.box_score, args.shams])
     if mode_count > 1:
         print("❌ Error: Only one mode can be active at a time")
@@ -500,11 +531,7 @@ Examples:
     shams_shitpost = args.shams
     
     # Execute based on command
-    if args.command == 'interactive':
-        print("❌ Interactive mode not yet supported")
-        print("   Use: python ai_agent.py [--test] [--injury | --box_score | --shams]")
-        exit(1)
-    elif args.command == 'loop':
+    if args.command == 'loop':
         asyncio.run(run_agent_loop(args.interval, test_mode=test_mode, 
                                    injury_only=injury_only, box_score_only=box_score_only,
                                    shams_shitpost=shams_shitpost))

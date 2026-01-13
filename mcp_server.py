@@ -43,6 +43,35 @@ async def get_completed_games_today() -> List[Dict[str, Any]]:
 
 
 @mcp.tool()
+async def get_completed_games_by_date(date: str) -> List[Dict[str, Any]]:
+    """
+    Fetches all completed NBA games from a specific date.
+    
+    Args:
+        date: Date in YYYY-MM-DD format (e.g., "2025-01-11", "2025-01-10")
+    
+    Returns:
+        List of games with scores and team names from that date
+    """
+    try:
+        from datetime import datetime
+        # Validate date format
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        
+        # Get games for that date
+        games = nba_client.get_completed_games_by_date(date)
+        return games
+    except ValueError:
+        return {
+            "error": f"Invalid date format: {date}. Use YYYY-MM-DD format (e.g., '2025-01-11')"
+        }
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
+
+
+@mcp.tool()
 async def get_game_box_score(game_id: str) -> Dict[str, Any]:
     """
     Fetches detailed box score for a specific game.

@@ -144,6 +144,70 @@ class NBAClient:
             logger.error(f"Error fetching completed games: {e}")
             return []
     
+    def get_completed_games_by_date(self, date: str) -> List[Dict[str, Any]]:
+        """
+        Get all completed games from a specific date.
+        
+        Args:
+            date: Date string in YYYY-MM-DD format (e.g., "2025-01-11")
+        
+        Returns:
+            List of completed game dictionaries
+        """
+        try:
+            scoreboard = scoreboardv2.ScoreboardV2(game_date=date)
+            games_data = scoreboard.get_normalized_dict()
+            
+            games = []
+            if 'GameHeader' in games_data and 'LineScore' in games_data:
+                game_headers = {g['GAME_ID']: g for g in games_data['GameHeader']}
+                
+                for line in games_data['LineScore']:
+                    game_id = line['GAME_ID']
+                    
+                    if game_id not in game_headers:
+                        continue
+                    
+                    header = game_headers[game_id]
+                    
+                    # Only include completed games
+                    if header['GAME_STATUS_TEXT'] != 'Final':
+                        continue
+                    
+                    # Check if we already have this game
+                    existing_game = next((g for g in games if g['game_id'] == game_id), None)
+                    
+                    if existing_game:
+                        # Add score info
+                        if line['TEAM_ID'] == header['HOME_TEAM_ID']:
+                            existing_game['home_score'] = line['PTS']
+                        else:
+                            existing_game['away_score'] = line['PTS']
+                    else:
+                        # Create new game entry
+                        game = {
+                            'game_id': game_id,
+                            'game_date': header['GAME_DATE_EST'],
+                            'home_team_id': header['HOME_TEAM_ID'],
+                            'away_team_id': header['VISITOR_TEAM_ID'],
+                            'home_team': self.get_team_abbreviation(header['HOME_TEAM_ID']),
+                            'away_team': self.get_team_abbreviation(header['VISITOR_TEAM_ID']),
+                        }
+                        
+                        if line['TEAM_ID'] == header['HOME_TEAM_ID']:
+                            game['home_score'] = line['PTS']
+                        else:
+                            game['away_score'] = line['PTS']
+                        
+                        games.append(game)
+            
+            logger.info(f"Found {len(games)} completed games on {date}")
+            return games
+            
+        except Exception as e:
+            logger.error(f"Error fetching completed games for {date}: {e}")
+            return []
+    
     def get_box_score(self, game_id: str) -> Optional[Dict[str, Any]]:
         """
         Get detailed box score for a specific game.
