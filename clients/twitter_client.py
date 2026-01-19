@@ -18,7 +18,7 @@ class TwitterClient:
             consumer_secret=settings.TWITTER_API_SECRET,
             access_token=settings.TWITTER_ACCESS_TOKEN,
             access_token_secret=settings.TWITTER_ACCESS_TOKEN_SECRET,
-            wait_on_rate_limit=True
+            wait_on_rate_limit=False  # Handle rate limits explicitly in calling code
         )
         
     def get_user_recent_tweets(
@@ -51,29 +51,40 @@ class TwitterClient:
             kwargs = {
                 "id": user_id,
                 "max_results": min(max_results, 100),
-                "tweet_fields": ["id", "text", "created_at", "author_id"],
+                "tweet_fields": ["id", "text", "created_at", "author_id", "public_metrics"],
             }
-            
+
             if since_id:
                 kwargs["since_id"] = since_id
-            
+
             tweets = self.client.get_users_tweets(**kwargs)
-            
+
             if not tweets.data:
                 logger.info(f"No new tweets from {username}")
                 return []
-            
+
             return [
                 {
                     "id": str(tweet.id),
                     "text": tweet.text,
                     "created_at": tweet.created_at,
                     "author_id": str(tweet.author_id),
+                    "public_metrics": {
+                        "like_count": tweet.public_metrics.get("like_count", 0) if hasattr(tweet, "public_metrics") and tweet.public_metrics else 0,
+                        "retweet_count": tweet.public_metrics.get("retweet_count", 0) if hasattr(tweet, "public_metrics") and tweet.public_metrics else 0,
+                        "reply_count": tweet.public_metrics.get("reply_count", 0) if hasattr(tweet, "public_metrics") and tweet.public_metrics else 0,
+                    }
                 }
                 for tweet in tweets.data
             ]
             
         except tweepy.TweepyException as e:
+            error_str = str(e).lower()
+            # Re-raise rate limit errors so calling code can handle them
+            if "rate limit" in error_str or "429" in error_str or "too many requests" in error_str:
+                logger.error(f"Rate limit error fetching tweets from {username}: {e}")
+                raise  # Re-raise so MCP server can handle it
+            # For other errors, log and return empty list
             logger.error(f"Error fetching tweets from {username}: {e}")
             return []
     
@@ -92,6 +103,10 @@ class TwitterClient:
             logger.info(f"Successfully retweeted tweet {tweet_id}")
             return response
         except tweepy.TweepyException as e:
+            error_str = str(e).lower()
+            if "rate limit" in error_str or "429" in error_str or "too many requests" in error_str:
+                logger.error(f"Rate limit error retweeting {tweet_id}: {e}")
+                raise
             logger.error(f"Error retweeting {tweet_id}: {e}")
             return None
     
@@ -127,6 +142,10 @@ class TwitterClient:
             return None
             
         except tweepy.TweepyException as e:
+            error_str = str(e).lower()
+            if "rate limit" in error_str or "429" in error_str or "too many requests" in error_str:
+                logger.error(f"Rate limit error quoting tweet {tweet_id}: {e}")
+                raise
             logger.error(f"Error quoting tweet {tweet_id}: {e}")
             return None
     
@@ -163,6 +182,10 @@ class TwitterClient:
             return None
             
         except tweepy.TweepyException as e:
+            error_str = str(e).lower()
+            if "rate limit" in error_str or "429" in error_str or "too many requests" in error_str:
+                logger.error(f"Rate limit error posting tweet: {e}")
+                raise
             logger.error(f"Error posting tweet: {e}")
             return None
     

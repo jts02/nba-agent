@@ -4,6 +4,10 @@ from .models import (
     ProcessedTweet,
     BoxScorePost,
     AgentLog,
+    MonitoredTweet,
+    HeatNarrative,
+    HeatKnowledge,
+    SmartBotTweet,
     Base
 )
 
@@ -12,6 +16,10 @@ __all__ = [
     "ProcessedTweet",
     "BoxScorePost",
     "AgentLog",
+    "MonitoredTweet",
+    "HeatNarrative",
+    "HeatKnowledge",
+    "SmartBotTweet",
     "Base"
 ]
 
